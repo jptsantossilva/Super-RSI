@@ -43,7 +43,9 @@ eTradeWithLoss   = u'\U0001F44E' # thumbs down
 eInformation = u'\U00002139'
 
 telegram_chat_id = ""
-telegramToken = ""
+telegramtoken = ""
+telegramtoken_alerts = ""
+telegramtoken_errors = ""
 
 # telegram timeout 5 seg
 telegram_timeout = 5
@@ -52,11 +54,15 @@ def read_env_var():
     # environment variables
     
     global telegram_chat_id
-    global telegramToken
+    global telegramtoken
+    global telegramtoken_alerts
+    global telegramtoken_errors
 
     try:
         telegram_chat_id = os.environ.get('telegram_chat_id')
-        telegramToken = os.environ.get('telegramtoken_signals')
+        telegramtoken = os.environ.get('telegramtoken_signals') # all messages
+        telegramtoken_alerts = os.environ.get('telegramtoken_signals_alerts') # just alerts
+        telegramtoken_errors = os.environ.get('telegramtoken_signals_errors') # just errors
 
     except KeyError as e: 
         msg = sys._getframe(  ).f_code.co_name+" - "+repr(e)
@@ -66,7 +72,7 @@ def read_env_var():
 # fulfill telegram vars
 read_env_var()
 
-def send_telegram_message(telegram_token, emoji, msg):
+def send_telegram_message(emoji, msg):
 
     msg = remove_chars_exceptions(msg)
 
@@ -98,16 +104,18 @@ def send_telegram_message(telegram_token, emoji, msg):
             }
 
             try:
-                # if message is a warning, send message also to the errors telegram chat bot 
-                # if emoji == eWarning:
-                #     resp = requests.post("https://api.telegram.org/bot{}/sendMessage".format(telegramToken_errors), params=params, timeout=telegram_timeout)
-                #     resp.raise_for_status()
-
-                # if telegram_token != telegramToken_errors:
-                #     resp = requests.post("https://api.telegram.org/bot{}/sendMessage".format(telegram_token), params=params, timeout=telegram_timeout)
-                #     resp.raise_for_status()
-
-                resp = requests.post("https://api.telegram.org/bot{}/sendMessage".format(telegram_token), params=params, timeout=telegram_timeout)
+                # if message is a warning, send message to the errors telegram chat bot 
+                if emoji == eWarning:
+                    resp = requests.post("https://api.telegram.org/bot{}/sendMessage".format(telegramtoken_errors), params=params, timeout=telegram_timeout)
+                    resp.raise_for_status()
+                
+                # if message is a enter or exit trade alert, send message to the alerts telegram chat bot 
+                if emoji in [eEnterTrade, eExitTrade]:
+                    resp = requests.post("https://api.telegram.org/bot{}/sendMessage".format(telegramtoken_alerts), params=params, timeout=telegram_timeout)
+                    resp.raise_for_status()
+                
+                # send all message to run telegram chat bot
+                resp = requests.post("https://api.telegram.org/bot{}/sendMessage".format(telegramtoken), params=params, timeout=telegram_timeout)
                 resp.raise_for_status()
 
             except requests.exceptions.HTTPError as errh:
@@ -140,12 +148,18 @@ def send_telegram_message(telegram_token, emoji, msg):
         }
         
         try:            
-            # if message is a warning, send message also to the errors telegram chat bot 
-            # if emoji == eWarning:
-            #     resp = requests.post("https://api.telegram.org/bot{}/sendMessage".format(telegramToken_errors), params=params, timeout=telegram_timeout)
-            #     resp.raise_for_status()
-
-            resp = requests.post("https://api.telegram.org/bot{}/sendMessage".format(telegram_token), params=params, timeout=telegram_timeout)
+            # if message is a warning, send message to the errors telegram chat bot 
+            if emoji == eWarning:
+                resp = requests.post("https://api.telegram.org/bot{}/sendMessage".format(telegramtoken_errors), params=params, timeout=telegram_timeout)
+                resp.raise_for_status()
+            
+            # if message is a enter or exit trade alert, send message to the alerts telegram chat bot 
+            if emoji in [eEnterTrade, eExitTrade]:
+                resp = requests.post("https://api.telegram.org/bot{}/sendMessage".format(telegramtoken_alerts), params=params, timeout=telegram_timeout)
+                resp.raise_for_status()
+            
+            # send all message to run telegram chat bot
+            resp = requests.post("https://api.telegram.org/bot{}/sendMessage".format(telegramtoken), params=params, timeout=telegram_timeout)
             resp.raise_for_status()
 
         except requests.exceptions.HTTPError as errh:
@@ -165,82 +179,14 @@ def send_telegram_message(telegram_token, emoji, msg):
             print(msg)
             # logging.exception(msg)
 
-# def send_telegram_alert(telegram_token, emoji, date, coin, timeframe, strategy, ordertype, unitValue, amount, trade_against_value, pnlPerc = '', pnl_trade_against = ''):
-#     lmsg = emoji + " " + str(date) + "\n" + coin + "\n" + strategy + "\n" + timeframe + "\n" + ordertype + "\n" + "UnitPrice: " + str(unitValue) + "\n" + "Qty: " + str(amount)+ "\n" + trade_against + ": " + str(trade_against_value)
-#     if pnlPerc != '':
-#         lmsg = lmsg + "\n"+"PnL%: "+str(round(float(pnlPerc),2)) + "\n"+"PnL USD: "+str(float(pnl_trade_against))
-
-#     print(lmsg)
-
-#     # To fix the issues with dataframes alignments, the message is sent as HTML and wraped with <pre> tag
-#     # Text in a <pre> element is displayed in a fixed-width font, and the text preserves both spaces and line breaks
-#     lmsg = "<pre>"+lmsg+"</pre>"
-
-#     params = {
-#     "chat_id": telegram_chat_id,
-#     "text": lmsg,
-#     "parse_mode": "HTML",
-#     }
-    
-#     try:
-#         resp = requests.post("https://api.telegram.org/bot{}/sendMessage".format(telegram_token), params=params, timeout=telegram_timeout)
-#         resp.raise_for_status()
-
-#     except requests.exceptions.HTTPError as errh:
-#         msg = sys._getframe(  ).f_code.co_name+" - An Http Error occurred:" + repr(errh)
-#         print(msg)
-#         # logging.exception(msg)
-#     except requests.exceptions.ConnectionError as errc:
-#         msg = sys._getframe(  ).f_code.co_name+" - An Error Connecting to the API occurred:" + repr(errc)
-#         print(msg)
-#         # logging.exception(msg)
-#     except requests.exceptions.Timeout as errt:
-#         msg = sys._getframe(  ).f_code.co_name+" - A Timeout Error occurred:" + repr(errt)
-#         print(msg)
-#         # logging.exception(msg)
-#     except requests.exceptions.RequestException as err:
-#         msg = sys._getframe(  ).f_code.co_name+" - An Unknown Error occurred" + repr(err)
-#         print(msg)
-#         # logging.exception(msg)
-
-#     # if is a closed position send also to telegram of closed positions
-#     if emoji in [eTradeWithProfit, eTradeWithLoss]:
-        
-#         params = {
-#         "chat_id": telegram_chat_id,
-#         "text": lmsg,
-#         "parse_mode": "HTML",
-#         }
-
-#         try: 
-#             resp = requests.post("https://api.telegram.org/bot{}/sendMessage".format(telegramToken_closed_position), params=params, timeout=telegram_timeout)
-#             resp.raise_for_status()
-
-#         except requests.exceptions.HTTPError as errh:
-#             msg = sys._getframe(  ).f_code.co_name+" - An Http Error occurred:" + repr(errh)
-#             print(msg)
-#             logging.exception(msg)
-#         except requests.exceptions.ConnectionError as errc:
-#             msg = sys._getframe(  ).f_code.co_name+" - An Error Connecting to the API occurred:" + repr(errc)
-#             print(msg)
-#             logging.exception(msg)
-#         except requests.exceptions.Timeout as errt:
-#             msg = sys._getframe(  ).f_code.co_name+" - A Timeout Error occurred:" + repr(errt)
-#             print(msg)
-#             logging.exception(msg)
-#         except requests.exceptions.RequestException as err:
-#             msg = sys._getframe(  ).f_code.co_name+" - An Unknown Error occurred" + repr(err)
-#             print(msg)
-#             logging.exception(msg)
-
-def send_telegram_photo(telegram_token, file_name):
+def send_telegram_photo(file_name):
     
     # get current dir
     cwd = os.getcwd()
     limg = cwd+"/"+file_name
     # print(limg)
     oimg = open(limg, 'rb')
-    url = f"https://api.telegram.org/bot{telegram_token}/sendPhoto?chat_id={telegram_chat_id}"
+    url = f"https://api.telegram.org/bot{telegramtoken}/sendPhoto?chat_id={telegram_chat_id}"
     
     try:
         resp = requests.post(url, files={'photo':oimg}, timeout=telegram_timeout) # this sends the message
@@ -263,13 +209,13 @@ def send_telegram_photo(telegram_token, file_name):
         print(msg)
         # logging.exception(msg)
 
-def send_telegram_file(telegram_token, file_name):
+def send_telegram_file(file_name):
     
     # get current dir
     cwd = os.getcwd()
     file = cwd+"/"+file_name
     # print(limg)
-    url = f"https://api.telegram.org/bot{telegram_token}/sendDocument"
+    url = f"https://api.telegram.org/bot{telegramtoken}/sendDocument"
     
     try:
         with open(file, 'rb') as f:
@@ -295,7 +241,8 @@ def send_telegram_file(telegram_token, file_name):
 
 
 def remove_chars_exceptions(string):
-    
+    # this is useful for the binance errors messages
+
     # define the characters to be removed
     chars_to_remove = ['<', '>', '{', '}', "'", '"']
 
