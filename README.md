@@ -19,6 +19,12 @@ send alerts when all timeframes RSI is in overbough or oversold condition.
  ```
     */15 * * * * cd /home/joaosilva/Documents/GitHub/Super-RSI && python3 super_rsi.py prod
 ```
+- Python Libraries
+```text
+pip install ta==0.10.2
+pip install backtesting==0.3.3
+pip install python-binance==1.0.16
+```
 
 
 ## Disclaimer
