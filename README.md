@@ -1,6 +1,5 @@
 # Super-RSI
 
-#
 The strategy roughly goes like this:
 
 send alerts when all timeframes RSI is in overbough or oversold condition:
