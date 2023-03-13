@@ -2,7 +2,7 @@
 
 The strategy roughly goes like this:
 
-send alerts when all timeframes RSI is in overbough or oversold condition:
+send alerts when all timeframes RSI is in overbough or oversold condition.
 ```text
     .RSI 1d / 4h / 1h / 30m / 15m <= 20
     .RSI 1d / 4h / 1h / 30m / 15m >= 80
