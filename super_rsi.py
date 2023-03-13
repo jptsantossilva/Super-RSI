@@ -40,7 +40,7 @@ else:
     # print("Argument is missing")
     # run_mode = input('Enter run mode (backtest or execution):')
     arg_run_mode = sys.argv[1]
-    if arg_run_mode == "backtest":
+    if arg_run_mode in['backtest','prod']:
         run_mode = arg_run_mode
     else:
         msg = "invalid argument"
