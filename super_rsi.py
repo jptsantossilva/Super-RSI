@@ -4,12 +4,9 @@ SUPER-RSI
 
 The strategy roughly goes like this:
 
-Buy a position when:
+send alerts when:
     .RSI 1d / 4h / 1h / 30m / 15m <= 20
-
-Close the position when:
     .RSI 1d / 4h / 1h / 30m / 15m >= 80
-
 """
 
 import os
@@ -25,6 +22,10 @@ import time
 import sqlite3
 import ta
 import telegram
+
+msg = 'SUPER-RSI - Start'
+print(msg)
+telegram.send_telegram_message(telegram.eStart, msg)
 
 print('Enter argument to choose run mode type (backtest or prod).\nIf no argument is entered, prod mode will be chosen.')
 # total arguments
@@ -55,7 +56,7 @@ except KeyError as e:
     msg = sys._getframe(  ).f_code.co_name+" - "+repr(e)
     print(msg)
     # logging.exception(msg)
-    telegram.send_telegram_message(telegram.telegramToken, telegram.eWarning, msg)
+    telegram.send_telegram_message(telegram.eWarning, msg)
     sys.exit(msg) 
 
 # Binance Client
@@ -65,7 +66,7 @@ except Exception as e:
         msg = "Error connecting to Binance. "+ repr(e)
         print(msg)
         # logging.exception(msg)
-        telegram.send_telegram_message(telegram.telegramToken, telegram.eWarning, msg)
+        telegram.send_telegram_message(telegram.eWarning, msg)
         sys.exit(msg) 
 
 # database
@@ -89,6 +90,10 @@ cursor.execute('''CREATE TABLE IF NOT EXISTS symbols (
                symbol TEXT,
                calc BOOLEAN,
                PRIMARY KEY(symbol))''')
+# backtest trades table
+cursor.execute('''CREATE TABLE IF NOT EXISTS backtest_trades (
+                symbol TEXT, EntryPrice REAL, ExitPrice REAL, PnL REAL,
+                ReturnPct REAL, EntryTime DATETIME, ExitTime DATETIME, Duration TEX)''')
 
 # commit the changes to the database
 conn.commit()
@@ -174,7 +179,8 @@ class Super_RSI(Strategy):
                 self.rsi_30m[-1] <= self.rsi_low and
                 self.rsi_1h[-1]  <= self.rsi_low and
                 self.rsi_4h[-1]  <= self.rsi_low and
-                self.rsi_1d[-1]  <= self.rsi_low):
+                self.rsi_1d[-1]  <= self.rsi_low and
+                1 == 1):
             self.buy()
         
         # 
@@ -183,11 +189,14 @@ class Super_RSI(Strategy):
                 self.rsi_30m[-1] >= self.rsi_high and
                 self.rsi_1h[-1]  >= self.rsi_high and
                 self.rsi_4h[-1]  >= self.rsi_high and
-                self.rsi_1d[-1]  >= self.rsi_high): 
+                self.rsi_1d[-1]  >= self.rsi_high and
+                1 == 1): 
                 self.position.close()
             
 def get_data(Symbol, time_frame, start_date):
-    print('getting data '+Symbol)
+    msg = f'{Symbol} - getting data'
+    print(msg)
+    telegram.send_telegram_message('', msg)
     frame = pd.DataFrame(client.get_historical_klines(Symbol,
                                                       time_frame,
                                                       start_date
@@ -266,6 +275,7 @@ def backtest_super_rsi(symbol):
     backtest_start_date = stats['Start'].strftime('%Y-%m-%d %H:%M:%S') 
     backtest_end_date = stats['End'].strftime('%Y-%m-%d %H:%M:%S')
     num_trades = stats['# Trades']
+    df_trades = stats['_trades']
 
     # lista
     print('Results '+symbol+':')
@@ -281,14 +291,28 @@ def backtest_super_rsi(symbol):
     print("Backtest start date =", backtest_start_date)
     print("Backtest end date =", backtest_end_date)
     print("Trades =", num_trades)
-    print(stats['_trades'])
+    print(df_trades)
 
     # values_list
     # values_list = [symbol, rsi_1d, rsi_4h, rsi_1h, rsi_30m, rsi_15m, rsi_low, rsi_high, return_perc, buyhold_return_perc, backtest_start_date, backtest_end_date, num_trades]
     values_list = [symbol, 14, 14, 14, 14, 14, rsi_low, rsi_high, return_perc, buyhold_return_perc, backtest_start_date, backtest_end_date, num_trades]
     
-    # insert or update to database
+    # insert or update best rsi values to database
     cursor.execute('INSERT OR REPLACE INTO best_rsi VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)', values_list)
+
+    # delete existing backtesting trades and add new ones 
+    cursor.execute(f'''DELETE FROM backtest_trades WHERE symbol = '{symbol}' ''')
+    
+    # Insert the new trades into the table
+    if not df_trades.empty:
+        # Select only the desired columns
+        df_trades = df_trades[['EntryPrice', 'ExitPrice', 'PnL', 'ReturnPct', 'EntryTime', 'ExitTime', 'Duration']]
+        # add the new "symbol" column
+        df_trades.insert(0, 'symbol', symbol)
+
+        # Write the trades to the database
+        df_trades.to_sql('backtest_trades', conn, if_exists='append', index=False)
+
     conn.commit()
 
 #-----------------------------------------------------------------------
@@ -340,107 +364,149 @@ def super_rsi(symbol):
     df_15m = get_data(symbol, time_frame, start_date)
     # Compute RSI
     apply_technicals(df_15m, rsi_15m)
-    # print(df_15m)
 
     # check rsi value
     # we want the value before the last that corresponded to the last closed candle. 
     # The last one is the current and the candle is not yet closed
     value = round(df_15m['rsi'].iloc[-2],1) 
-    result = value <= rsi_low
+    result_low = value <= rsi_low
+    result_high = value >= rsi_high
 
-    msg_15m = f"RSI({rsi_15m}) 15m = {value}"
+    msg_15m = f"{symbol} - RSI({rsi_15m}) 15m = {value}"
     print(msg_15m)
-    # print(df_15m.tail(5))
-    
-    # result = True
-    if not result:
-        msg = f"RSI({rsi_15m}) 15m - condition not fulfilled"
+    telegram.send_telegram_message('', msg_15m)
+
+    if not result_low:
+        msg = f"{symbol} - RSI({rsi_15m}) 15m ≤ {rsi_low} - condition not fulfilled"
         print(msg) 
-        return  # Exit the function
-    # assuming your dataframe is named "df" and you want to get the last value of the "price" column
+        telegram.send_telegram_message('', msg)
     
-    if result:
+    if not result_high:
+        msg = f"{symbol} - RSI({rsi_15m}) 15m ≥ {rsi_high} - condition not fulfilled"
+        print(msg) 
+        telegram.send_telegram_message('', msg)
+    
+    if not result_low and not result_high:
+        return  # Exit the function
+    
+    if result_low or result_high:
         df_30m = df_15m.resample('30min').last()
         apply_technicals(df_30m, rsi_30m)
         # print(df_30m)
 
         value = round(df_30m['rsi'].iloc[-2],1)
-        result = value <= rsi_low
         
-        msg_30m = f"RSI({rsi_30m}) 30m = {value}"
+        # if previous was below then test the current
+        if result_low:
+            result_low = value <= rsi_low
+        # if previous was above then test the current
+        if result_high:
+            result_high = value >= rsi_high
+        
+        msg_30m = f"{symbol} - RSI({rsi_30m}) 30m = {value}"
         print(msg_30m)
-        # print(df_30m.tail(5))
+        telegram.send_telegram_message('', msg_30m)
 
-        # result = True
-        if not result:
-            msg = f"RSI({rsi_30m}) 30m - condition not fulfilled"
+        if not result_low:
+            msg = f"{symbol} - RSI({rsi_30m}) 30m ≤ {rsi_low} - condition not fulfilled"
             print(msg) 
-            return  # Exit the function 
+            telegram.send_telegram_message('', msg)
     
-    if result:
+        if not result_high:
+            msg = f"{symbol} - RSI({rsi_30m}) 30m ≥ {rsi_high} - condition not fulfilled"
+            print(msg) 
+            telegram.send_telegram_message('', msg)
+        
+        if not result_low and not result_high:
+            return  # Exit the function
+        
+    if result_low or result_high:
         df_1h = df_15m.resample('1H').last()
         apply_technicals(df_1h, rsi_1h)
-        # print(df_1h)
-
-        value = round(df_1h['rsi'].iloc[-2],1)
-        result = value <= rsi_low
         
-        msg_1h = f"RSI({rsi_1h}) 1H = {value}"
+        value = round(df_1h['rsi'].iloc[-2],1)
+        result_low = value <= rsi_low
+        result_high = value >= rsi_high
+        
+        msg_1h = f"{symbol} - RSI({rsi_1h}) 1H = {value}"
         print(msg_1h)
-        # print(df_1h.tail(5))
-
-        # result = True
-        if not result:
-            msg = f"RSI({rsi_1h}) 1H - condition not fulfilled"
+        
+        if not result_low:
+            msg = f"{symbol} - RSI({rsi_1h}) 1H ≤ {rsi_low} - condition not fulfilled"
             print(msg) 
+            telegram.send_telegram_message('', msg)
+    
+        if not result_high:
+            msg = f"{symbol} - RSI({rsi_1h}) 1H ≥ {rsi_high} - condition not fulfilled"
+            print(msg) 
+            telegram.send_telegram_message('', msg)
+        
+        if not result_low and not result_high:
             return  # Exit the function
     
-    if result:
+    if result_low or result_high:
         df_4h = df_15m.resample('4H').last()
         apply_technicals(df_4h, rsi_4h)
-        # print(df_4h)
-
-        value = round(df_4h['rsi'].iloc[-2],1)
-        result = value <= rsi_low
         
-        msg_4h = f"RSI({rsi_4h}) 4H = {value}"
+        value = round(df_4h['rsi'].iloc[-2],1)
+        result_low = value <= rsi_low
+        result_high = value >= rsi_high
+        
+        msg_4h = f"{symbol} - RSI({rsi_4h}) 4H = {value}"
         print(msg_4h)
-        # print(df_4h.tail(5))
-
-        # result = True
-        if not result:
-            msg = f"RSI({rsi_4h}) 4H - condition not fulfilled"
+        telegram.send_telegram_message('', msg_4h)
+         
+        if not result_low:
+            msg = f"{symbol} - RSI({rsi_4h}) 4H ≤ {rsi_low} - condition not fulfilled"
             print(msg) 
-            return  # Exit the function
+            telegram.send_telegram_message('', msg)
 
-    if result:
+        if not result_high:
+            msg = f"{symbol} - RSI({rsi_4h}) 4H ≥ {rsi_high} - condition not fulfilled"
+            print(msg) 
+            telegram.send_telegram_message('', msg)
+
+        if not result_low and not result_high:
+            return  # Exit the function
+        
+    if result_low or result_high:
         df_1d = df_15m.resample('D').last()
         apply_technicals(df_1d, rsi_1d)
-        # print(df_1d)
-
-        value = round(df_1d['rsi'].iloc[-2],1)
-        result = value <= rsi_low
         
-        msg_1d = f"RSI({rsi_1d}) 1D = {value}"
+        value = round(df_1d['rsi'].iloc[-2],1)
+        result_low = value <= rsi_low
+        result_high = value >= rsi_high
+        
+        msg_1d = f"{symbol} - RSI({rsi_1d}) 1D = {value}"
         print(msg_1d)
-        # print(df_1d.tail(5))
-
-        # result = True
-        if not result:
-            msg = f"RSI({rsi_1d}) 1D - condition not fulfilled"
+        telegram.send_telegram_message('', msg_1d)
+         
+        if not result_low:
+            msg = f"{symbol} - RSI({rsi_1d}) 1D ≤ {rsi_low} - condition not fulfilled"
             print(msg) 
+            telegram.send_telegram_message('', msg)
+        
+        if not result_high:
+            msg = f"{symbol} - RSI({rsi_1d}) 1D ≥ {rsi_high} - condition not fulfilled"
+            print(msg) 
+            telegram.send_telegram_message('', msg)
+
+        if not result_low and not result_high:
             return  # Exit the function
 
-    # if rsi is below min level in all timeframes we have a super rsi alert!
-    if result:
+    # if rsi is below min level or above max level in all timeframes we have a super rsi alert!
+    if result_low or result_high:
         # get current date and time
         now = datetime.datetime.now()
         # format the current date and time
         formatted_now = now.strftime("%Y-%m-%d %H:%M:%S")
 
         msg = f"SUPER-RSI alert!\n{formatted_now}\n{symbol}\n{msg_15m}\n{msg_30m}\n{msg_1h}\n{msg_4h}\n{msg_1d}"
-        telegram.send_telegram_message(telegram.telegramToken, telegram.eInformation, msg)
-
+        
+        if result_low:
+            telegram.send_telegram_message(telegram.eEnterTrade, msg)
+        elif result_high:
+            telegram.send_telegram_message(telegram.eExitTrade, msg)
 
 # backtest_super_rsi("BTCUSDT")
 # backtest_super_rsi("ETHUSDT")
@@ -476,4 +542,9 @@ elif run_mode == "backtest":
             backtest_super_rsi(symbol[0])
 
 conn.close()
+
+msg = 'SUPER-RSI - End'
+print(msg)
+telegram.send_telegram_message(telegram.eStop, msg)
+
 
