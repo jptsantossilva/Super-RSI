@@ -430,6 +430,7 @@ def super_rsi(symbol):
         
         msg_1h = f"{symbol} - RSI({rsi_1h}) 1H = {value}"
         print(msg_1h)
+        telegram.send_telegram_message('', msg_1h)
         
         if not result_low:
             msg = f"{symbol} - RSI({rsi_1h}) 1H ≤ {rsi_low} - condition not fulfilled"
