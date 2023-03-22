@@ -7,6 +7,12 @@ The strategy roughly goes like this:
 send alerts when:
     .RSI 1d / 4h / 1h / 30m / 15m <= 20
     .RSI 1d / 4h / 1h / 30m / 15m >= 80
+
+---
+
+Enter argument to choose run mode type (backtest or prod). If no argument is entered, prod mode will be chosen.
+python3 super_rsi.py backtest
+
 """
 
 import os
@@ -33,7 +39,7 @@ n = len(sys.argv)
 # print("Total arguments passed:", n)
 if n < 2:
     run_mode = "prod"
-    # run_mode = "backtest" # tests purpose
+    run_mode = "backtest" # tests purpose
     print(f"{run_mode} mode") 
 else:
     # argv[0] in Python is always the name of the script.
@@ -98,7 +104,7 @@ cursor.execute('''CREATE TABLE IF NOT EXISTS backtest_trades (
 # commit the changes to the database
 conn.commit()
 
-rsi_lookback_periods = 14 # 20 days
+rsi_lookback_periods = 14 # 14 days
 
 
 def EMA(values, n):
@@ -157,9 +163,22 @@ class Super_RSI(Strategy):
     rsi_length_1h = 14
     rsi_length_30m = 14
     rsi_length_15m = 14
+    
     rsi_low = 20
     rsi_high = 80
-    
+
+    # rsi_low_1d = 20
+    # rsi_low_4h = 20
+    # rsi_low_1h = 20
+    # rsi_low_30m = 20
+    # rsi_low_15m = 20
+
+    # rsi_high_1d = 80
+    # rsi_high_4h = 80
+    # rsi_high_1h = 80
+    # rsi_high_30m = 80
+    # rsi_high_15m = 80
+
     def init(self):
         
         # Compute RSI
@@ -180,16 +199,31 @@ class Super_RSI(Strategy):
                 self.rsi_1h[-1]  <= self.rsi_low and
                 self.rsi_4h[-1]  <= self.rsi_low and
                 self.rsi_1d[-1]  <= self.rsi_low and
+                
+                # self.rsi_15m[-1] <= self.rsi_low_15m and
+                # self.rsi_30m[-1] <= self.rsi_low_30m and
+                # self.rsi_1h[-1]  <= self.rsi_low_1h and
+                # self.rsi_4h[-1]  <= self.rsi_low_4h and
+                # self.rsi_1d[-1]  <= self.rsi_low_1d and
+
                 1 == 1):
             self.buy()
         
-        # 
+        # if all conditions are satisfied, close position
         else: 
-            if (self.rsi_15m[-1] >= self.rsi_high and
+            if (
+                self.rsi_15m[-1] >= self.rsi_high and
                 self.rsi_30m[-1] >= self.rsi_high and
                 self.rsi_1h[-1]  >= self.rsi_high and
                 self.rsi_4h[-1]  >= self.rsi_high and
                 self.rsi_1d[-1]  >= self.rsi_high and
+
+                # self.rsi_15m[-1] >= self.rsi_high_15m and
+                # self.rsi_30m[-1] >= self.rsi_high_30m and
+                # self.rsi_1h[-1]  >= self.rsi_high_1h and
+                # self.rsi_4h[-1]  >= self.rsi_high_4h and
+                # self.rsi_1d[-1]  >= self.rsi_high_1d and
+
                 1 == 1): 
                 self.position.close()
             
@@ -248,8 +282,24 @@ def backtest_super_rsi(symbol):
                 # rsi_length_1h  = range(10, 20, 5),
                 # rsi_length_30m = range(10, 20, 5),
                 # rsi_length_15m = range(10, 20, 5),
-                rsi_low = range(10, 30, 5),
-                rsi_high = range(70, 90, 5),
+                # rsi_low = range(10, 30, 5),
+                # rsi_high = range(70, 90, 5),
+
+                rsi_low = 20,
+                rsi_high = 80,
+
+                # rsi_low_15m = range(20, 30, 5),
+                # rsi_low_30m = range(20, 30, 5),
+                # rsi_low_1h = range(20, 30, 5),
+                # rsi_low_4h = range(20, 35, 5),
+                # rsi_low_1d = range(20, 35, 5),
+
+                # rsi_high_15m = range(80, 90, 5),
+                # rsi_high_30m = range(80, 90, 5),
+                # rsi_high_1h = range(80, 90, 5),
+                # rsi_high_4h = range(80, 90, 5),
+                # rsi_high_1d = range(80, 90, 5),
+
                 maximize='Equity Final [$]',
                 return_heatmap=True
                 )
@@ -270,6 +320,17 @@ def backtest_super_rsi(symbol):
     rsi_low = int(df_best.index.get_level_values(0)[0])
     rsi_high = int(df_best.index.get_level_values(1)[0])
 
+    # rsi_low_15m = int(df_best.index.get_level_values(0)[0])
+    # rsi_low_30m = int(df_best.index.get_level_values(1)[0])
+    # rsi_low_1h = int(df_best.index.get_level_values(2)[0])
+    # rsi_low_4h = int(df_best.index.get_level_values(3)[0])
+    # rsi_low_1d = int(df_best.index.get_level_values(4)[0])
+    # rsi_high_15m = int(df_best.index.get_level_values(5)[0])
+    # rsi_high_30m = int(df_best.index.get_level_values(6)[0])
+    # rsi_high_1h = int(df_best.index.get_level_values(7)[0])
+    # rsi_high_4h = int(df_best.index.get_level_values(8)[0])
+    # rsi_high_1d = int(df_best.index.get_level_values(9)[0])
+
     return_perc = round(stats['Return [%]'],2)
     buyhold_return_perc = round(stats['Buy & Hold Return [%]'],2)
     backtest_start_date = stats['Start'].strftime('%Y-%m-%d %H:%M:%S') 
@@ -279,13 +340,28 @@ def backtest_super_rsi(symbol):
 
     # lista
     print('Results '+symbol+':')
+    
     # print("rsi_1d = ",rsi_1d)
     # print("rsi_4h = ",rsi_4h)
     # print("rsi_1h = ",rsi_1h)
     # print("rsi_30m = ",rsi_30m)
     # print("rsi_15m = ",rsi_15m)
+
     print("rsi_low = ",rsi_low)
     print("rsi_high = ",rsi_high)
+    
+    # print("rsi_low_15m = ",rsi_low_15m)
+    # print("rsi_low_30m = ",rsi_low_30m)
+    # print("rsi_low_1h = ",rsi_low_1h)
+    # print("rsi_low_4h = ",rsi_low_4h)
+    # print("rsi_low_1D = ",rsi_low_1d)
+
+    # print("rsi_high_15m = ",rsi_high_15m)
+    # print("rsi_high_30m = ",rsi_high_30m)
+    # print("rsi_high_1h = ",rsi_high_1h)
+    # print("rsi_high_4h = ",rsi_high_4h)
+    # print("rsi_high_1D = ",rsi_high_1d)
+
     print("Return [%] = ",round(return_perc,2))
     print("Buy & Hold Return [%] = ",round(buyhold_return_perc,2))
     print("Backtest start date =", backtest_start_date)
