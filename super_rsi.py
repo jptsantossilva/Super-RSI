@@ -454,13 +454,13 @@ def super_rsi(symbol):
 
     if not result_low:
         msg = f"{symbol} - RSI({rsi_15m}) 15m ≤ {rsi_low} - condition not fulfilled"
-        print(msg) 
-        telegram.send_telegram_message('', msg)
+        # print(msg) 
+        # telegram.send_telegram_message('', msg)
     
     if not result_high:
         msg = f"{symbol} - RSI({rsi_15m}) 15m ≥ {rsi_high} - condition not fulfilled"
-        print(msg) 
-        telegram.send_telegram_message('', msg)
+        # print(msg) 
+        # telegram.send_telegram_message('', msg)
     
     if not result_low and not result_high:
         return  # Exit the function
@@ -485,13 +485,13 @@ def super_rsi(symbol):
 
         if not result_low:
             msg = f"{symbol} - RSI({rsi_30m}) 30m ≤ {rsi_low} - condition not fulfilled"
-            print(msg) 
-            telegram.send_telegram_message('', msg)
+            # print(msg) 
+            # telegram.send_telegram_message('', msg)
     
         if not result_high:
             msg = f"{symbol} - RSI({rsi_30m}) 30m ≥ {rsi_high} - condition not fulfilled"
-            print(msg) 
-            telegram.send_telegram_message('', msg)
+            # print(msg) 
+            # telegram.send_telegram_message('', msg)
         
         if not result_low and not result_high:
             return  # Exit the function
@@ -510,13 +510,13 @@ def super_rsi(symbol):
         
         if not result_low:
             msg = f"{symbol} - RSI({rsi_1h}) 1H ≤ {rsi_low} - condition not fulfilled"
-            print(msg) 
-            telegram.send_telegram_message('', msg)
+            # print(msg) 
+            # telegram.send_telegram_message('', msg)
     
         if not result_high:
             msg = f"{symbol} - RSI({rsi_1h}) 1H ≥ {rsi_high} - condition not fulfilled"
-            print(msg) 
-            telegram.send_telegram_message('', msg)
+            # print(msg) 
+            # telegram.send_telegram_message('', msg)
         
         if not result_low and not result_high:
             return  # Exit the function
@@ -535,13 +535,13 @@ def super_rsi(symbol):
          
         if not result_low:
             msg = f"{symbol} - RSI({rsi_4h}) 4H ≤ {rsi_low} - condition not fulfilled"
-            print(msg) 
-            telegram.send_telegram_message('', msg)
+            # print(msg) 
+            # telegram.send_telegram_message('', msg)
 
         if not result_high:
             msg = f"{symbol} - RSI({rsi_4h}) 4H ≥ {rsi_high} - condition not fulfilled"
-            print(msg) 
-            telegram.send_telegram_message('', msg)
+            # print(msg) 
+            # telegram.send_telegram_message('', msg)
 
         if not result_low and not result_high:
             return  # Exit the function
@@ -560,13 +560,13 @@ def super_rsi(symbol):
          
         if not result_low:
             msg = f"{symbol} - RSI({rsi_1d}) 1D ≤ {rsi_low} - condition not fulfilled"
-            print(msg) 
-            telegram.send_telegram_message('', msg)
+            # print(msg) 
+            # telegram.send_telegram_message('', msg)
         
         if not result_high:
             msg = f"{symbol} - RSI({rsi_1d}) 1D ≥ {rsi_high} - condition not fulfilled"
-            print(msg) 
-            telegram.send_telegram_message('', msg)
+            # print(msg) 
+            # telegram.send_telegram_message('', msg)
 
         if not result_low and not result_high:
             return  # Exit the function
