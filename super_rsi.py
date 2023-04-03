@@ -588,7 +588,58 @@ def super_rsi(symbol):
 # backtest_super_rsi("BTCUSDT")
 # backtest_super_rsi("ETHUSDT")
 
+
+
+# database
+conn = sqlite3.connect('super-rsi.db')
+# cursor
+c = conn.cursor()
+
+def get_symbols_from_positions():
+
+    # get the current working directory
+    cwd = os.getcwd()
+
+    data_path1 = os.path.join(cwd, '..', 'bot_BUSD', 'positions1d.csv')
+    data_path2 = os.path.join(cwd, '..', 'bot_BUSD', 'positions4h.csv')
+    data_path3 = os.path.join(cwd, '..', 'bot_BUSD', 'positions1h.csv')
+
+    data_path4 = os.path.join(cwd, '..', 'bot_BTC', 'positions1d.csv')
+    data_path5 = os.path.join(cwd, '..', 'bot_BTC', 'positions4h.csv')
+    data_path6 = os.path.join(cwd, '..', 'bot_BTC', 'positions1h.csv')
+
+    # read three dataframes
+    df1 = pd.read_csv(data_path1)
+    df2 = pd.read_csv(data_path2)
+    df3 = pd.read_csv(data_path3)
+
+    df4 = pd.read_csv(data_path4)
+    df5 = pd.read_csv(data_path5)
+    df6 = pd.read_csv(data_path6)
+
+    # concatenate the dataframes vertically
+    df = pd.concat([df1, df2, df3, df4, df5, df6], axis=0, ignore_index=True)
+
+    # filter for position = 1 and extract unique currencies
+    symbols = df.loc[df['position'] == 1, 'Currency'].unique().tolist()
+
+    return symbols
+
+def save_symbols_to_db(symbols):
+    # delete currencies not in the list
+    c.execute("DELETE FROM symbols WHERE calc = 1 AND symbol NOT IN ({})".format(','.join(['?']*len(symbols))), symbols)
+    conn.commit()
+
+    # insert symbols into the table
+    for symbol in symbols:
+        c.execute('INSERT OR IGNORE INTO symbols (symbol, calc) VALUES (?,?)', (symbol, 1))
+    conn.commit()
+
 if run_mode == "prod":
+
+    symbols = get_symbols_from_positions()
+    save_symbols_to_db(symbols)
+
     # define your SQL query to retrieve the symbols where calc is true
     query = "SELECT symbol FROM symbols WHERE calc = 1"
 
