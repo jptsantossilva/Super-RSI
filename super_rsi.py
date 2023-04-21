@@ -599,37 +599,33 @@ def get_symbols_from_positions():
     # get the current working directory
     cwd = os.getcwd()
 
-    data_path_busd = os.path.join(cwd, '..', 'bot_BUSD', 'data.db')
-    data_path_btc = os.path.join(cwd, '..', 'bot_BTC', 'data.db')
+    database_file_name = 'data.db'
 
-    connection_busd = database.connect(data_path_busd)
-    connection_btc = database.connect(data_path_btc)
-    # data_path1 = os.path.join(cwd, '..', 'bot_BUSD', 'positions1d.csv')
-    # data_path2 = os.path.join(cwd, '..', 'bot_BUSD', 'positions4h.csv')
-    # data_path3 = os.path.join(cwd, '..', 'bot_BUSD', 'positions1h.csv')
+    data_path_busd = os.path.join(cwd, '..', 'bot_BUSD')
+    data_path_btc = os.path.join(cwd, '..', 'bot_BTC')
 
-    # data_path4 = os.path.join(cwd, '..', 'bot_BTC', 'positions1d.csv')
-    # data_path5 = os.path.join(cwd, '..', 'bot_BTC', 'positions4h.csv')
-    # data_path6 = os.path.join(cwd, '..', 'bot_BTC', 'positions1h.csv')
+    # check if database_file_name exists on data_path_busd path
+    database_busd_exists = os.path.exists(os.path.join(data_path_busd, database_file_name))
+    database_btc_exists = os.path.exists(os.path.join(data_path_btc, database_file_name))
 
-    # read three dataframes
-    df_busd = database.get_positions_by_bot_position(connection_busd, position=1)
-    df_btc = database.get_positions_by_bot_position(connection_btc, position=1)
+    if database_busd_exists:
+        connection_busd = database.connect(data_path_busd, database_file_name)
+        df_busd = database.get_positions_by_bot_position(connection_busd, position=1)
+    else:
+        print(f"Database file '{database_file_name}' does not exist on path '{data_path_busd}'.")
 
-    # df1 = pd.read_csv(data_path1)
-    # df2 = pd.read_csv(data_path2)
-    # df3 = pd.read_csv(data_path3)
-
-    # df4 = pd.read_csv(data_path4)
-    # df5 = pd.read_csv(data_path5)
-    # df6 = pd.read_csv(data_path6)
-
-    # concatenate the dataframes vertically
-    # df = pd.concat([df1, df2, df3, df4, df5, df6], axis=0, ignore_index=True)
-    df = pd.concat([df_busd, df_btc], axis=0, ignore_index=True)
-
-    # filter for position = 1 and extract unique currencies
-    # symbols = df.loc[df['position'] == 1, 'Currency'].unique().tolist()
+    if database_btc_exists:
+        connection_btc = database.connect(data_path_btc, database_file_name)
+        df_btc = database.get_positions_by_bot_position(connection_btc, position=1)
+    else:
+        print(f"Database file '{database_file_name}' does not exist on path '{data_path_btc}'.")
+    
+    if database_busd_exists and database_btc_exists:
+        df = pd.concat([df_busd, df_btc], axis=0, ignore_index=True)
+    elif database_busd_exists:
+        df = df_busd.copy()
+    elif database_btc_exists:
+        df = df_btc.copy()
     
     # create a set of symbols
     symbols = set(df['Symbol'].unique())
@@ -637,8 +633,12 @@ def get_symbols_from_positions():
     return symbols
 
 def save_symbols_to_db(symbols):
+
+    # convert set to list
+    symbols_list = list(symbols)
+
     # delete currencies not in the list
-    c.execute("DELETE FROM symbols WHERE calc = 1 AND symbol NOT IN ({})".format(','.join(['?']*len(symbols))), symbols)
+    c.execute("DELETE FROM symbols WHERE calc = 1 AND symbol NOT IN ({})".format(','.join(['?']*len(symbols_list))), symbols_list)
     conn.commit()
 
     # insert symbols into the table
